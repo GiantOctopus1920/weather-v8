@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Widget Pogodowy - Asfalt Radar</title>
+    <title>Widget Pogodowy - Mapa i Stan Asfaltu</title>
     
     <style>
         body {
@@ -66,7 +66,7 @@
             font-weight: 600;
         }
         
-        /* POPRAWIONA STRUKTURA WARSTW MAPY */
+        /* PRAWDZIWA MAPA TOPOGRAFICZNA W TLE */
         .map-area {
             height: 320px; 
             background-color: #1a2530;
@@ -90,12 +90,12 @@
             position: absolute; 
             top: 0; left: 0; width: 100%; height: 100%;
             pointer-events: none;
-            z-index: 5; /* WYMUSZENIE WYŚWIETLANIA CHMURY NA SAMEJ GÓRZE */
+            z-index: 3;
         }
         .rain-zone { 
             position: absolute; 
             border-radius: 50%; 
-            filter: blur(20px); 
+            filter: blur(22px); 
             display: block !important;
             transform: translate(-50%, -50%);
         }
@@ -103,15 +103,15 @@
         .map-labels {
             position: absolute; top: 0; left: 0; width: 100%; height: 100%;
             pointer-events: none;
-            z-index: 6;
+            z-index: 4;
         }
-        .map-label { font-size: 0.78em; color: rgba(255,255,255,0.45); position: absolute; transform: translate(-50%, -50%); }
-        .label-center { font-weight: bold; color: rgba(255,255,255,0.95); font-size: 0.95em; text-shadow: 0 0 4px #000; }
+        .map-label { font-size: 0.8em; color: rgba(255,255,255,0.45); position: absolute; transform: translate(-50%, -50%); }
+        .label-center { font-weight: bold; color: rgba(255,255,255,0.95); font-size: 1em; text-shadow: 0 0 4px #000; }
         
         .map-legend {
             position: absolute; top: 10px; right: 12px;
             font-size: 0.62em; text-align: right;
-            z-index: 7;
+            z-index: 5;
             color: rgba(255,255,255,0.4);
             line-height: 1.4;
         }
@@ -149,7 +149,7 @@
             
             <div class="child-info-line">Co robi deszcz: <span id="c-status-loc1">Ładowanie...</span></div>
             <div class="child-info-line">Szansa na deszcz (Google): <span id="c-prob-loc1">Ładowanie...</span></div>
-            <div class="child-info-line">Dokładność prognozy: <span id="c-cert-loc1">Ładowanie...</span></div>
+            <div class="child-info-line">Dokładność prognozy modelu: <span id="c-cert-loc1">Ładowanie...</span></div>
             <div class="child-info-line">Suma opadów w tej godzinie: <span id="c-amount-loc1">Ładowanie...</span></div>
         </div>
         <div class="advice" id="advice-loc1">Trwa analiza nawierzchni...</div>
@@ -191,7 +191,7 @@
             
             <div class="child-info-line">Co robi deszcz: <span id="c-status-loc2">Ładowanie...</span></div>
             <div class="child-info-line">Szansa na deszcz (Google): <span id="c-prob-loc2">Ładowanie...</span></div>
-            <div class="child-info-line">Dokładność prognozy: <span id="c-cert-loc2">Ładowanie...</span></div>
+            <div class="child-info-line">Dokładność prognozy modelu: <span id="c-cert-loc2">Ładowanie...</span></div>
             <div class="child-info-line">Suma opadów w tej godzinie: <span id="c-amount-loc2">Ładowanie...</span></div>
         </div>
         <div class="advice" id="advice-loc2">Trwa analiza nawierzchni...</div>
@@ -233,7 +233,7 @@
             
             <div class="child-info-line">Co robi deszcz: <span id="c-status-loc3">Ładowanie...</span></div>
             <div class="child-info-line">Szansa na deszcz (Google): <span id="c-prob-loc3">Ładowanie...</span></div>
-            <div class="child-info-line">Dokładność prognozy: <span id="c-cert-loc3">Ładowanie...</span></div>
+            <div class="child-info-line">Dokładność prognozy modelu: <span id="c-cert-loc3">Ładowanie...</span></div>
             <div class="child-info-line">Suma opadów w tej godzinie: <span id="c-amount-loc3">Ładowanie...</span></div>
         </div>
         <div class="advice" id="advice-loc3">Trwa analiza nawierzchni...</div>
@@ -296,7 +296,7 @@
             cert: rawProb 
         };
         
-        // Obliczanie zbieżnego z Google procentu szansy
+        // WYGŁADZANIE PROCENTÓW GOOGLE
         let calculatedProb = rawProb;
         if (precip > 0 && precip <= 0.25 && rawProb > 50) {
             calculatedProb = Math.round(rawProb * 0.3); 
@@ -347,11 +347,11 @@
                 
                 const curInterp = interpretWeather(currentVolume, rawCurrentProbability, currentCode);
                 
-                // TU WSTRZYKUJEMY DANE BEZPOŚREDNIO DO ZNACZNIKÓW ID
+                // ABSOLUTNE ROZDZIELENIE DANYCH WZORCOWYCH NA EKRANIE
                 document.getElementById(`c-status-${loc.id}`).innerHTML = curInterp.text;
                 document.getElementById(`c-status-${loc.id}`).className = curInterp.class;
-                document.getElementById(`c-prob-${loc.id}`).innerHTML = `${curInterp.googleProb}% szans`;
-                document.getElementById(`c-cert-${loc.id}`).innerHTML = `${curInterp.cert}% pewności`;
+                document.getElementById(`c-prob-${loc.id}`).innerHTML = `${curInterp.googleProb}% szansy`;
+                document.getElementById(`c-cert-${loc.id}`).innerHTML = `${curInterp.cert}% pewności modelu`;
                 
                 let volumeText = currentVolume > 0 ? `${currentVolume.toFixed(1)} l/m²` : (curInterp.class === "precip-low" ? "< 0.2 l/m²" : "0.0 l/m²");
                 document.getElementById(`c-amount-${loc.id}`).innerHTML = volumeText;
@@ -386,10 +386,10 @@
                         if (interp.class === "precip-storm") worstClassIn3h = "precip-storm";
                         else if (interp.class === "precip-high" && worstClassIn3h !== "precip-storm") worstClassIn3h = "precip-high";
                         else if (interp.class === "precip-mid" && worstClassIn3h !== "precip-storm" && worstClassIn3h !== "precip-high") worstClassIn3h = "precip-mid";
-                        else if (interp.class === "precip-low" && worstClassIn3h === "none") worstClassIn3h = "precip-low";
+                        else if (interp.class === "precip-low" && worstClassIn3h === "precip-none") worstClassIn3h = "precip-low";
                     }
 
-                    // RENDEROWANIE PLAM CHMUR
+                    // POZYCJONOWANIE CHMURY WOKÓŁ PUNKTU CENTRALNEGO MAPY GEOGRAFICZNEJ
                     if (interp.class !== "precip-none") {
                         let baseRadius = p > 0 ? p * 40 : 25;
                         let rainSize = Math.min(baseRadius, 120) + 35;
