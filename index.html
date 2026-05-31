@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Widget Pogodowy - Asfalt Radar Strefowy</title>
+    <title>Widget Pogodowy - Mapa i Stan Asfaltu</title>
     
     <style>
         body {
@@ -40,12 +40,15 @@
             background-color: #222;
             padding: 15px;
             border-radius: 10px;
-            text-align: center;
+            text-align: left;
             margin-bottom: 15px;
         }
-        .temp { font-size: 2.8em; font-weight: bold; color: #ffcc00; margin: 5px 0; }
-        .wind { color: #aaa; font-size: 0.95em; margin-bottom: 4px; }
-        .current-precip { font-size: 1.05em; font-weight: bold; margin-top: 5px; }
+        .temp { font-size: 2.8em; font-weight: bold; color: #ffcc00; text-align: center; margin: 5px 0; }
+        .wind { color: #aaa; font-size: 0.95em; text-align: center; margin-bottom: 10px; border-bottom: 1px solid #333; padding-bottom: 8px; }
+        
+        /* CZYTELNE LINIE DLA DZIECKA */
+        .child-info-line { font-size: 0.92em; margin: 4px 0; font-weight: 500; }
+        .child-info-line span { font-weight: bold; }
         
         .advice {
             padding: 15px;
@@ -64,56 +67,59 @@
             font-weight: 600;
         }
         
+        /* POWRÓT DUŻEJ MAPY KRAJOBRAZOWEJ */
         .map-area {
             height: 320px; 
-            background-color: #151d26;
+            background-color: #1a2530;
             border-radius: 10px;
             position: relative;
+            overflow: hidden;
             border: 1px solid #444;
             margin-bottom: 15px;
         }
         
-        .radar-ring {
+        /* Kontury geograficzne i drogi w tle mapy */
+        .map-contours {
             position: absolute;
-            top: 50%; left: 50%;
-            transform: translate(-50%, -50%);
-            border-radius: 50%;
-            border: 1px dashed rgba(255,255,255,0.06);
-            pointer-events: none;
-            box-sizing: border-box;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background-image: url('data:image/svg+xml;charset=UTF-8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 300"><path fill="none" stroke="rgba(255,255,255,0.08)" stroke-width="2" d="M10,10 C50,50 100,20 150,50 S200,80 250,50 S300,20 350,50 S390,90 390,120 S350,150 300,180 S250,210 200,180 S150,150 100,180 S50,210 10,180 Z"/><path fill="none" stroke="rgba(255,255,255,0.04)" stroke-width="1.2" d="M20,20 C60,60 110,30 160,60 S210,90 260,60 S310,30 360,60 S395,95 395,125 S355,155 305,185 S255,215 205,185 S155,155 105,185 S55,215 15,185 Z"/></svg>');
+            background-size: cover;
+            opacity: 0.75;
+            z-index: 1;
         }
-        .ring-1 { width: 100px; height: 100px; z-index: 2; } 
-        .ring-2 { width: 210px; height: 210px; z-index: 2; } 
-        .ring-3 { width: 320px; height: 320px; z-index: 2; } 
         
-        .zone-fill {
-            position: absolute;
-            top: 50%; left: 50%;
-            transform: translate(-50%, -50%);
-            border-radius: 50%;
-            opacity: 0.25;
-            transition: background-color 0.5s;
-        }
-        .zf-1 { width: 100px; height: 100px; z-index: 1; }
-        .zf-2 { width: 210px; height: 210px; z-index: 1; }
-        .zf-3 { width: 320px; height: 320px; z-index: 1; }
-
         .map-labels {
             position: absolute; top: 0; left: 0; width: 100%; height: 100%;
             pointer-events: none;
             z-index: 4;
         }
-        .map-label { font-size: 0.75em; color: rgba(255,255,255,0.4); position: absolute; transform: translate(-50%, -50%); }
-        .label-center { font-weight: bold; color: rgba(255,255,255,0.95); font-size: 0.9em; top: 50%; left: 50%; text-shadow: 0 0 5px #000; }
+        .map-label { font-size: 0.78em; color: rgba(255,255,255,0.45); position: absolute; transform: translate(-50%, -50%); }
+        .label-center { font-weight: bold; color: rgba(255,255,255,0.95); font-size: 0.95em; text-shadow: 0 0 4px #000; }
         
+        /* Warstwa chmur deszczowych nakładana na mapę */
+        .map-precipitation {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            pointer-events: none;
+            z-index: 2;
+        }
+        .rain-zone { 
+            position: absolute; 
+            border-radius: 50%; 
+            filter: blur(16px); 
+            display: block !important;
+            transform: translate(-50%, -50%);
+        }
+        
+        /* MINIMALISTYCZNA LEGENDA W ROGU MAPY */
         .map-legend {
             position: absolute; top: 10px; right: 12px;
-            font-size: 0.65em; text-align: right;
+            font-size: 0.62em; text-align: right;
             z-index: 5;
             color: rgba(255,255,255,0.4);
             line-height: 1.4;
         }
         
+        /* TABELA DANYCH GODZINOWYCH */
         .infographic-data {
             background-color: #1e2936;
             border-radius: 8px;
@@ -129,6 +135,7 @@
         .data-col:first-child { text-align: left; font-weight: 500; color: #888; }
         .data-col:last-child { text-align: right; font-weight: bold; }
         
+        /* KOLORY DLA LAIKA */
         .precip-none { color: #2ecc71; }   
         .precip-low { color: #f1c40f; }    
         .precip-mid { color: #e67e22; }    
@@ -144,38 +151,38 @@
         <div class="current">
             <div class="temp" id="temp-loc1">...</div>
             <div class="wind" id="wind-loc1">Pobieranie...</div>
-            <div class="current-precip" id="current-precip-loc1">Stan: Pobieranie...</div>
+            <div id="current-details-loc1">
+                <div class="child-info-line">Stan: <span id="c-status-loc1">...</span></div>
+                <div class="child-info-line">Szansa na deszcz (Google): <span id="c-prob-loc1">...</span></div>
+                <div class="child-info-line">Pewność komputera: <span id="c-cert-loc1">...</span></div>
+                <div class="child-info-line">Ile wody spadnie: <span id="c-amount-loc1">...</span></div>
+            </div>
         </div>
         <div class="advice" id="advice-loc1">Trwa analiza nawierzchni...</div>
         
-        <div class="section-title">Strefowy Radar Opadów</div>
+        <div class="section-title">Mapa Pogodowa Regionu</div>
         <div class="map-area">
-            <div class="radar-ring ring-1"></div>
-            <div class="radar-ring ring-2"></div>
-            <div class="radar-ring ring-3"></div>
-            
-            <div class="zone-fill zf-3" id="zf3-loc1"></div>
-            <div class="zone-fill zf-2" id="zf2-loc1"></div>
-            <div class="zone-fill zf-1" id="zf1-loc1"></div>
+            <div class="map-contours"></div>
+            <div class="map-precipitation" id="rain-loc1"></div>
             
             <div class="map-labels">
-                <div class="map-label label-center">SUFCZYN</div>
-                <div class="map-label" style="top: 50%; left: 22%;">+2h</div>
-                <div class="map-label" style="top: 50%; left: 5%;">+5h</div>
+                <div class="map-label label-center" style="top: 50%; left: 50%;">SUFCZYN</div>
+                <div class="map-label" style="top: 25%; left: 20%;">Brzesko</div>
+                <div class="map-label" style="top: 35%; left: 80%;">Tarnów</div>
+                <div class="map-label" style="top: 75%; left: 45%;">Dębno</div>
             </div>
             
             <div class="map-legend">
-                Fronty opadowe:<br>
-                <span style="color:#2ecc71;">■</span> Droga sucha<br>
+                <span style="color:#2ecc71;">■</span> Sucho / Bez zmian<br>
                 <span style="color:#f1c40f;">■</span> Mżawka (Wilgotno)<br>
-                <span style="color:#e67e22;">■</span> Deszcz (Mokro)<br>
+                <span style="color:#e67e22;">■</span> Deszcz (Mokry asfalt)<br>
                 <span style="color:#e74c3c;">■</span> Ulewa (Kałuże)<br>
-                <span style="color:#9b59b6;">■</span> Burza (Zagrożenie)
+                <span style="color:#9b59b6;">■</span> Burza (Wyładowania)
             </div>
         </div>
 
         <div class="infographic-data">
-            <div class="data-header">PROGNOZA CZASOWA (Zbieżna z Google):</div>
+            <div class="data-header">PROGNOZA GODZINOWA:</div>
             <div class="data-grid" id="hourly-loc1">Ładowanie...</div>
         </div>
         <div class="section-title">Najbliższe dni</div>
@@ -187,38 +194,38 @@
         <div class="current">
             <div class="temp" id="temp-loc2">...</div>
             <div class="wind" id="wind-loc2">Pobieranie...</div>
-            <div class="current-precip" id="current-precip-loc2">Stan: Pobieranie...</div>
+            <div id="current-details-loc2">
+                <div class="child-info-line">Stan: <span id="c-status-loc2">...</span></div>
+                <div class="child-info-line">Szansa na deszcz (Google): <span id="c-prob-loc2">...</span></div>
+                <div class="child-info-line">Pewność komputera: <span id="c-cert-loc2">...</span></div>
+                <div class="child-info-line">Ile wody spadnie: <span id="c-amount-loc2">...</span></div>
+            </div>
         </div>
         <div class="advice" id="advice-loc2">Trwa analiza nawierzchni...</div>
         
-        <div class="section-title">Strefowy Radar Opadów</div>
+        <div class="section-title">Mapa Pogodowa Regionu</div>
         <div class="map-area">
-            <div class="radar-ring ring-1"></div>
-            <div class="radar-ring ring-2"></div>
-            <div class="radar-ring ring-3"></div>
-            
-            <div class="zone-fill zf-3" id="zf3-loc2"></div>
-            <div class="zone-fill zf-2" id="zf2-loc2"></div>
-            <div class="zone-fill zf-1" id="zf1-loc2"></div>
+            <div class="map-contours"></div>
+            <div class="map-precipitation" id="rain-loc2"></div>
             
             <div class="map-labels">
-                <div class="map-label label-center">KRAKÓW</div>
-                <div class="map-label" style="top: 50%; left: 22%;">+2h</div>
-                <div class="map-label" style="top: 50%; left: 5%;">+5h</div>
+                <div class="map-label label-center" style="top: 45%; left: 40%;">KRAKÓW</div>
+                <div class="map-label" style="top: 65%; left: 68%;">Wieliczka</div>
+                <div class="map-label" style="top: 60%; left: 15%;">Skawina</div>
+                <div class="map-label" style="top: 18%; left: 55%;">Mistrzejowice</div>
             </div>
             
             <div class="map-legend">
-                Fronty opadowe:<br>
-                <span style="color:#2ecc71;">■</span> Droga sucha<br>
+                <span style="color:#2ecc71;">■</span> Sucho / Bez zmian<br>
                 <span style="color:#f1c40f;">■</span> Mżawka (Wilgotno)<br>
-                <span style="color:#e67e22;">■</span> Deszcz (Mokro)<br>
+                <span style="color:#e67e22;">■</span> Deszcz (Mokry asfalt)<br>
                 <span style="color:#e74c3c;">■</span> Ulewa (Kałuże)<br>
-                <span style="color:#9b59b6;">■</span> Burza (Zagrożenie)
+                <span style="color:#9b59b6;">■</span> Burza (Wyładowania)
             </div>
         </div>
 
         <div class="infographic-data">
-            <div class="data-header">PROGNOZA CZASOWA (Zbieżna z Google):</div>
+            <div class="data-header">PROGNOZA GODZINOWA:</div>
             <div class="data-grid" id="hourly-loc2">Ładowanie...</div>
         </div>
         <div class="section-title">Najbliższe dni</div>
@@ -230,38 +237,38 @@
         <div class="current">
             <div class="temp" id="temp-loc3">...</div>
             <div class="wind" id="wind-loc3">Pobieranie...</div>
-            <div class="current-precip" id="current-precip-loc3">Stan: Pobieranie...</div>
+            <div id="current-details-loc3">
+                <div class="child-info-line">Stan: <span id="c-status-loc3">...</span></div>
+                <div class="child-info-line">Szansa na deszcz (Google): <span id="c-prob-loc3">...</span></div>
+                <div class="child-info-line">Pewność komputera: <span id="c-cert-loc3">...</span></div>
+                <div class="child-info-line">Ile wody spadnie: <span id="c-amount-loc3">...</span></div>
+            </div>
         </div>
         <div class="advice" id="advice-loc3">Trwa analiza nawierzchni...</div>
         
-        <div class="section-title">Strefowy Radar Opadów</div>
+        <div class="section-title">Mapa Pogodowa Regionu</div>
         <div class="map-area">
-            <div class="radar-ring ring-1"></div>
-            <div class="radar-ring ring-2"></div>
-            <div class="radar-ring ring-3"></div>
-            
-            <div class="zone-fill zf-3" id="zf3-loc3"></div>
-            <div class="zone-fill zf-2" id="zf2-loc3"></div>
-            <div class="zone-fill zf-1" id="zf1-loc3"></div>
+            <div class="map-contours"></div>
+            <div class="map-precipitation" id="rain-loc3"></div>
             
             <div class="map-labels">
-                <div class="map-label label-center">SĘPOPOL</div>
-                <div class="map-label" style="top: 50%; left: 22%;">+2h</div>
-                <div class="map-label" style="top: 50%; left: 5%;">+5h</div>
+                <div class="map-label label-center" style="top: 50%; left: 50%;">SĘPOPOL</div>
+                <div class="map-label" style="top: 40%; left: 15%;">Bartoszyce</div>
+                <div class="map-label" style="top: 70%; left: 60%;">Korsze</div>
+                <div class="map-label" style="top: 20%; left: 65%;">Granica Państwa</div>
             </div>
             
             <div class="map-legend">
-                Fronty opadowe:<br>
-                <span style="color:#2ecc71;">■</span> Droga sucha<br>
+                <span style="color:#2ecc71;">■</span> Sucho / Bez zmian<br>
                 <span style="color:#f1c40f;">■</span> Mżawka (Wilgotno)<br>
-                <span style="color:#e67e22;">■</span> Deszcz (Mokro)<br>
+                <span style="color:#e67e22;">■</span> Deszcz (Mokry asfalt)<br>
                 <span style="color:#e74c3c;">■</span> Ulewa (Kałuże)<br>
-                <span style="color:#9b59b6;">■</span> Burza (Zagrożenie)
+                <span style="color:#9b59b6;">■</span> Burza (Wyładowania)
             </div>
         </div>
 
         <div class="infographic-data">
-            <div class="data-header">PROGNOZA GODZINOWA (Zbieżna z Google):</div>
+            <div class="data-header">PROGNOZA GODZINOWA:</div>
             <div class="data-grid" id="hourly-loc3">Ładowanie...</div>
         </div>
         <div class="section-title">Najbliższe dni</div>
@@ -279,164 +286,4 @@
     function getDesc(code) {
         if (code === 0) return "Pogodnie";
         if (code >= 1 && code <= 3) return "Lekkie zachmurzenie";
-        if (code >= 45 && code <= 48) return "Mgła";
-        if (code >= 51 && code <= 67) return "Deszcz";
-        if (code >= 71 && code <= 77) return "Śnieg";
-        if (code >= 80 && code <= 82) return "Ulewa";
-        if (code >= 95 && code <= 99) return "Burza";
-        return "Pochmurno";
-    }
-
-    function interpretWeather(precip, rawProb, wCode) {
-        let res = { class: "precip-none", text: "Sucho", icon: "✅", hexColor: "#2ecc71", filterProb: 0 };
-        
-        let googleProb = rawProb;
-        if (precip > 0 && precip <= 0.25 && rawProb > 50) {
-            googleProb = Math.round(rawProb * 0.3); 
-        }
-        res.filterProb = googleProb;
-
-        if (wCode >= 95 || precip > 6.0) {
-            res.class = "precip-storm"; res.text = "Burza (" + googleProb + "%)"; res.icon = "⛈️"; res.hexColor = "#9b59b6";
-        } else if (precip > 2.5) {
-            res.class = "precip-high"; res.text = "Ulewa (" + googleProb + "%)"; res.icon = "❌"; res.hexColor = "#e74c3c";
-        } else if (precip > 0.8) {
-            res.class = "precip-mid"; res.text = "Mokro (" + googleProb + "%)"; res.icon = "❌"; res.hexColor = "#e67e22";
-        } else if (precip > 0.0 || googleProb > 15) {
-            res.class = "precip-low"; res.text = "Mżawka (" + googleProb + "%)"; res.icon = "⚠️"; res.hexColor = "#f1c40f";
-        } else {
-            res.text = "Sucho (" + googleProb + "%)";
-        }
-        return res;
-    }
-
-    function getRoadAdvice(temp, wind, worstClass, currentWCode) {
-        let text = "";
-        if (currentWCode >= 95 || worstClass === "precip-storm") return { text: "⛈️ <b>ALARM BURZOWY!</b> Bezwzględny zakaz jazdy, pioruny.", color: "#9b59b6", bg: "#25162b" };
-        if (worstClass === "precip-high") return { text: "🌧️ <b>Potoki na drogach:</b> Bardzo silna ulewa. Odpuść trasę.", color: "#e74c3c", bg: "#331c1a" };
-        if (worstClass === "precip-mid") return { text: "☔ <b>Asfalt całkowicie mokry:</b> Droga jest śliska, uważaj na zakrętach.", color: "#e67e22", bg: "#33221a" };
-        if (worstClass === "precip-low") return { text: "⚠️ <b>Droga wilgotna/ciemna:</b> Pada lekka mżawka. Opony pryskają.", color: "#f1c40f", bg: "#332c1a" };
-        
-        if (wind > 30) { text += "💨 Silny wiatr boczny! <br>"; }
-        if (temp < 10) { text += "🧤 Niska temperatura, ubierz się cieplej. <br>"; }
-        
-        return { text: text || "🚲 <b>Asfalt całkowicie suchy!</b> Idealne warunki na szosę.", color: "#2ecc71", bg: "#1a3320" };
-    }
-
-    async function fetchWeatherData() {
-        for (const loc of locations) {
-            try {
-                const uniqueStamp = Math.floor(Date.now() / 1000);
-                const url = `https://api.open-meteo.com/v1/forecast?latitude=${loc.lat}&longitude=${loc.lon}&current=temperature_2m,wind_speed_10m,weather_code,precipitation,precipitation_probability&hourly=precipitation,precipitation_probability,temperature_2m,weather_code&daily=weather_code,temperature_2m_max,temperature_2m_min&timezone=Europe%2FWarsaw&timeformat=unixtime&_=${uniqueStamp}`;
-                
-                const response = await fetch(url);
-                if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
-                const data = await response.json();
-                
-                const t = Math.round(data.current.temperature_2m);
-                const w = Math.round(data.current.wind_speed_10m);
-                const currentCode = data.current.weather_code;
-                
-                const curInterp = interpretWeather(data.current.precipitation || 0, data.current.precipitation_probability || 0, currentCode);
-                let textNow = "Sucho";
-                if (curInterp.class === "precip-low") textNow = "Mżawka";
-                else if (curInterp.class === "precip-mid" || curInterp.class === "precip-high") textNow = "Deszcz";
-                else if (curInterp.class === "precip-storm") textNow = "Burza";
-                
-                document.getElementById(`current-precip-${loc.id}`).innerHTML = `Teraz: <span class="${curInterp.class}">${textNow} (${curInterp.filterProb}%)</span>`;
-                document.getElementById(`temp-${loc.id}`).innerHTML = t + " &deg;C";
-                document.getElementById(`wind-${loc.id}`).innerHTML = "Wiatr: " + w + " km/h";
-
-                const nowSec = Math.floor(Date.now() / 1000);
-                let hIndex = data.hourly.time.findIndex(timeSec => timeSec >= nowSec - 3600);
-                if (hIndex === -1) hIndex = 0;
-
-                let hHTML = "";
-                let worstClassIn3h = "precip-none";
-                
-                let zone1Items = []; 
-                let zone2Items = []; 
-                let zone3Items = []; 
-
-                for (let k = 0; k < 6; k++) { 
-                    let idx = hIndex + k;
-                    if (idx >= data.hourly.time.length) break;
-                    
-                    let dateObj = new Date(data.hourly.time[idx] * 1000);
-                    let hours = String(dateObj.getHours()).padStart(2, '0');
-                    let timeStr = hours + ":00";
-                    
-                    let p = data.hourly.precipitation[idx] || 0; 
-                    let prob = data.hourly.precipitation_probability[idx] || 0; 
-                    let tempHour = Math.round(data.hourly.temperature_2m[idx]);
-                    let wCode = data.hourly.weather_code[idx];
-                    
-                    let interp = interpretWeather(p, prob, wCode);
-                    
-                    if (k < 2) zone1Items.push(interp);
-                    else if (k < 4) zone2Items.push(interp);
-                    else zone3Items.push(interp);
-
-                    if (k < 3) {
-                        if (interp.class === "precip-storm") worstClassIn3h = "precip-storm";
-                        else if (interp.class === "precip-high" && worstClassIn3h !== "precip-storm") worstClassIn3h = "precip-high";
-                        else if (interp.class === "precip-mid" && worstClassIn3h !== "precip-storm" && worstClassIn3h !== "precip-high") worstClassIn3h = "precip-mid";
-                        else if (interp.class === "precip-low" && worstClassIn3h === "precip-none") worstClassIn3h = "precip-low";
-                    }
-
-                    hHTML += `<div class="data-row">
-                                <div class="data-col">${timeStr}</div>
-                                <div class="data-col" style="color: #ffcc00; font-weight: bold;">${tempHour}&deg;C</div>
-                                <div class="data-col">${interp.icon}</div>
-                                <div class="data-col ${interp.class}">${interp.text}</div>
-                              </div>`;
-                }
-                
-                 GrimZoneColor = function(zoneArray) {
-                    let worst = "#2ecc71"; 
-                    for(let m=0; m<zoneArray.length; m++) {
-                        if(zoneArray[m].class === "precip-storm") return "#9b59b6";
-                        if(zoneArray[m].class === "precip-high") worst = "#e74c3c";
-                        if(zoneArray[m].class === "precip-mid" && worst !== "#e74c3c") worst = "#e67e22";
-                        if(zoneArray[m].class === "precip-low" && worst !== "#e74c3c" && worst !== "#e67e22") worst = "#f1c40f";
-                    }
-                    return worst;
-                }
-
-                document.getElementById(`zf1-${loc.id}`).style.backgroundColor = GrimZoneColor(zone1Items);
-                document.getElementById(`zf2-${loc.id}`).style.backgroundColor = GrimZoneColor(zone2Items);
-                document.getElementById(`zf3-${loc.id}`).style.backgroundColor = GrimZoneColor(zone3Items);
-                
-                document.getElementById(`hourly-${loc.id}`).innerHTML = hHTML;
-
-                const adviceResult = getRoadAdvice(t, w, worstClassIn3h, currentCode);
-                const advDiv = document.getElementById(`advice-${loc.id}`);
-                advDiv.innerHTML = adviceResult.text;
-                advDiv.style.borderLeftColor = adviceResult.color;
-                advDiv.style.backgroundColor = adviceResult.bg;
-
-                let dHTML = "";
-                for (let m = 1; m <= 5; m++) {
-                    if (m >= data.daily.time.length) break;
-                    let dDate = new Date(data.daily.time[m] * 1000); 
-                    let daysPl = ["Niedz", "Pon", "Wt", "Śr", "Czw", "Pt", "Sob"];
-                    let dName = daysPl[dDate.getDay()];
-                    let minTemp = Math.round(data.daily.temperature_2m_min[m]);
-                    let maxTemp = Math.round(data.daily.temperature_2m_max[m]);
-                    let desc = getDesc(data.daily.weather_code[m]);
-                    dHTML += `<div class="data-row"><span>${dName} (${desc})</span><span style="font-weight:bold;">${minTemp}&deg;C / ${maxTemp}&deg;C</span></div>`;
-                }
-                document.getElementById(`daily-${loc.id}`).innerHTML = dHTML;
-
-            } catch (err) {
-                console.error("Błąd ładowania stacji:", err);
-            }
-        }
-    }
-
-    // BEZPOŚREDNI ROZRUCH - BEZ CZEKANIA NA WINDOW.ONLOAD
-    fetchWeatherData();
-    setInterval(fetchWeatherData, 900000); 
-</script>
-</body>
-</html>
+        if (code >= 45 && code <= 48)
