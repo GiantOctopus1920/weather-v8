@@ -323,7 +323,6 @@
         return { text: text || "🚲 <b>Asfalt całkowicie suchy!</b> Idealne warunki na szosę.", color: "#2ecc71", bg: "#1a3320" };
     }
 
-    // GŁÓWNY SILNIK SERWISU - NOWOCZESNY FETCH ASYNCHRONICZNY
     async function fetchWeatherData() {
         for (const loc of locations) {
             try {
@@ -338,7 +337,6 @@
                 const w = Math.round(data.current.wind_speed_10m);
                 const currentCode = data.current.weather_code;
                 
-                // Aktualizacja sekcji górnej ("Teraz")
                 const curInterp = interpretWeather(data.current.precipitation || 0, data.current.precipitation_probability || 0, currentCode);
                 let textNow = "Sucho";
                 if (curInterp.class === "precip-low") textNow = "Mżawka";
@@ -394,7 +392,7 @@
                               </div>`;
                 }
                 
-                function getZoneColor(zoneArray) {
+                 GrimZoneColor = function(zoneArray) {
                     let worst = "#2ecc71"; 
                     for(let m=0; m<zoneArray.length; m++) {
                         if(zoneArray[m].class === "precip-storm") return "#9b59b6";
@@ -405,20 +403,18 @@
                     return worst;
                 }
 
-                document.getElementById(`zf1-${loc.id}`).style.backgroundColor = getZoneColor(zone1Items);
-                document.getElementById(`zf2-${loc.id}`).style.backgroundColor = getZoneColor(zone2Items);
-                document.getElementById(`zf3-${loc.id}`).style.backgroundColor = getZoneColor(zone3Items);
+                document.getElementById(`zf1-${loc.id}`).style.backgroundColor = GrimZoneColor(zone1Items);
+                document.getElementById(`zf2-${loc.id}`).style.backgroundColor = GrimZoneColor(zone2Items);
+                document.getElementById(`zf3-${loc.id}`).style.backgroundColor = GrimZoneColor(zone3Items);
                 
                 document.getElementById(`hourly-${loc.id}`).innerHTML = hHTML;
 
-                // Aktualizacja porady drogowej
                 const adviceResult = getRoadAdvice(t, w, worstClassIn3h, currentCode);
                 const advDiv = document.getElementById(`advice-${loc.id}`);
                 advDiv.innerHTML = adviceResult.text;
                 advDiv.style.borderLeftColor = adviceResult.color;
                 advDiv.style.backgroundColor = adviceResult.bg;
 
-                // Dni prognozy długoterminowej
                 let dHTML = "";
                 for (let m = 1; m <= 5; m++) {
                     if (m >= data.daily.time.length) break;
@@ -438,11 +434,9 @@
         }
     }
 
-    // Bezpieczny start - skrypt rusza dopiero, gdy okno jest w 100% gotowe
-    window.onload = function() {
-        fetchWeatherData();
-        setInterval(fetchWeatherData, 900000); // Automatyczne odświeżanie co 15 minut
-    };
+    // BEZPOŚREDNI ROZRUCH - BEZ CZEKANIA NA WINDOW.ONLOAD
+    fetchWeatherData();
+    setInterval(fetchWeatherData, 900000); 
 </script>
 </body>
 </html>
