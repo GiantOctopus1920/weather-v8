@@ -17,13 +17,13 @@
             display: grid;
             grid-template-columns: repeat(3, 1fr);
             gap: 20px;
-            max-width: 1500px;
+            max-width: 1400px;
             margin: 0 auto;
         }
-        @media (max-width: 1150px) {
+        @media (max-width: 1100px) {
             .container { grid-template-columns: repeat(2, 1fr); }
         }
-        @media (max-width: 750px) {
+        @media (max-width: 700px) {
             .container { grid-template-columns: 1fr; }
         }
         
@@ -63,7 +63,7 @@
             font-weight: 600;
         }
         
-        /* NOWA SEKCJA MAPY STREFOWEJ */
+        /* SEKCJA MAPY STREFOWEJ */
         .map-area {
             height: 320px; 
             background-color: #151d26;
@@ -73,7 +73,7 @@
             margin-bottom: 15px;
         }
         
-        /* Centryczne pierścienie czasu/odległości radaru */
+        /* Pierścienie radaru */
         .radar-ring {
             position: absolute;
             top: 50%; left: 50%;
@@ -83,11 +83,11 @@
             pointer-events: none;
             box-sizing: border-box;
         }
-        .ring-1 { width: 100px; height: 100px; z-index: 2; } /* Strefa: Teraz / +1h */
-        .ring-2 { width: 210px; height: 210px; z-index: 2; } /* Strefa: +2h / +3h */
-        .ring-3 { width: 320px; height: 320px; z-index: 2; } /* Strefa: +4h / +6h */
+        .ring-1 { width: 100px; height: 100px; z-index: 2; } 
+        .ring-2 { width: 210px; height: 210px; z-index: 2; } 
+        .ring-3 { width: 320px; height: 320px; z-index: 2; } 
         
-        /* Kolorowe podkłady strefowe opadów */
+        /* Warstwy kolorów */
         .zone-fill {
             position: absolute;
             top: 50%; left: 50%;
@@ -108,7 +108,7 @@
         .map-label { font-size: 0.75em; color: rgba(255,255,255,0.4); position: absolute; transform: translate(-50%, -50%); }
         .label-center { font-weight: bold; color: rgba(255,255,255,0.95); font-size: 0.9em; top: 50%; left: 50%; text-shadow: 0 0 5px #000; }
         
-        /* ZMINIMALIZOWANA LEGENDA */
+        /* LEGENDA W ROGU MAPY */
         .map-legend {
             position: absolute; top: 10px; right: 12px;
             font-size: 0.65em; text-align: right;
@@ -117,7 +117,7 @@
             line-height: 1.4;
         }
         
-        /* TABELA DANYCH POD MAPĄ */
+        /* TABELA DANYCH */
         .infographic-data {
             background-color: #1e2936;
             border-radius: 8px;
@@ -148,7 +148,7 @@
         <div class="current">
             <div class="temp">...</div>
             <div class="wind">Pobieranie...</div>
-            <div class="current-precip" id="current-precip-loc1">Stan: ...</div>
+            <div class="current-precip" id="current-precip-loc1">Stan: Pobieranie...</div>
         </div>
         <div class="advice" id="advice-loc1">Trwa analiza nawierzchni...</div>
         
@@ -191,7 +191,7 @@
         <div class="current">
             <div class="temp">...</div>
             <div class="wind">Pobieranie...</div>
-            <div class="current-precip" id="current-precip-loc2">Stan: ...</div>
+            <div class="current-precip" id="current-precip-loc2">Stan: Pobieranie...</div>
         </div>
         <div class="advice" id="advice-loc2">Trwa analiza nawierzchni...</div>
         
@@ -234,7 +234,7 @@
         <div class="current">
             <div class="temp">...</div>
             <div class="wind">Pobieranie...</div>
-            <div class="current-precip" id="current-precip-loc3">Stan: ...</div>
+            <div class="current-precip" id="current-precip-loc3">Stan: Pobieranie...</div>
         </div>
         <div class="advice" id="advice-loc3">Trwa analiza nawierzchni...</div>
         
@@ -291,15 +291,14 @@
         return "Pochmurno";
     }
 
-    // SYSTEM INTERPRETACJI DANYCH DLA LAIKA
     function interpretWeather(precip, rawProb, wCode) {
-        var res = { class: "precip-none", text: "Sucho (0%)", icon: "✅", hexColor: "#2ecc71" };
+        var res = { class: "precip-none", text: "Sucho", icon: "✅", hexColor: "#2ecc71", filterProb: 0 };
         
-        // Filtr wygładzający Google dla małych mżawek
         var googleProb = rawProb;
         if (precip > 0 && precip <= 0.25 && rawProb > 50) {
             googleProb = Math.round(rawProb * 0.3); 
         }
+        res.filterProb = googleProb;
 
         if (wCode >= 95 || precip > 6.0) {
             res.class = "precip-storm"; res.text = "Burza (" + googleProb + "%)"; res.icon = "⛈️"; res.hexColor = "#9b59b6";
@@ -348,108 +347,4 @@
                         var w = Math.round(data.current.wind_speed_10m);
                         var currentCode = data.current.weather_code;
                         
-                        // Nagłówek "Teraz" dla laika
-                        var curInterp = interpretWeather(data.current.precipitation || 0, data.current.precipitation_probability || 0, currentCode);
-                        var textNow = curInterp.class === "precip-none" ? "Sucho" : (curInterp.class === "precip-low" ? "Mżawka" : "Deszcz");
-                        document.getElementById('current-precip-' + loc.id).innerHTML = 'Teraz: <span class="' + curInterp.class + '">' + textNow + ' (' + curInterp.text.match(/\d+%/)[0] + ')</span>';
-
-                        card.querySelector('.temp').innerHTML = t + " &deg;C";
-                        card.querySelector('.wind').innerHTML = "Wiatr: " + w + " km/h";
-
-                        var nowSec = Math.floor(Date.now() / 1000);
-                        var hIndex = 0;
-                        for (var j = 0; j < data.hourly.time.length; j++) {
-                            if (data.hourly.time[j] >= nowSec - 3600) {
-                                hIndex = j;
-                                break;
-                            }
-                        }
-
-                        var hHTML = "";
-                        var worstClassIn3h = "precip-none";
-                        
-                        // Tablice stref pogodowych dla mapy
-                        var zone1Items = []; // Najbliższe godziny (0h, 1h)
-                        var zone2Items = []; // Środek trasy (2h, 3h)
-                        var zone3Items = []; // Daleka prognoza (4h, 5h)
-
-                        for (var k = 0; k < 6; k++) { 
-                            var idx = hIndex + k;
-                            if (idx >= data.hourly.time.length) break;
-                            
-                            var dateObj = new Date(data.hourly.time[idx] * 1000);
-                            var hours = dateObj.getHours();
-                            if (hours < 10) hours = "0" + hours;
-                            var timeStr = hours + ":00";
-                            
-                            var p = data.hourly.precipitation[idx] || 0; 
-                            var prob = data.hourly.precipitation_probability[idx] || 0; 
-                            var tempHour = Math.round(data.hourly.temperature_2m[idx]);
-                            var wCode = data.hourly.weather_code[idx];
-                            
-                            var interp = interpretWeather(p, prob, wCode);
-                            
-                            // Segregacja godzin do odpowiednich stref na mapie radaru
-                            if (k < 2) zone1Items.push(interp);
-                            else if (k < 4) zone2Items.push(interp);
-                            else zone3Items.push(interp);
-
-                            // Śledzenie najgorszych warunków dla 3h porady
-                            if (k < 3) {
-                                if (interp.class === "precip-storm") worstClassIn3h = "precip-storm";
-                                else if (interp.class === "precip-high" && worstClassIn3h !== "precip-storm") worstClassIn3h = "precip-high";
-                                else if (interp.class === "precip-mid" && worstClassIn3h !== "precip-storm" && worstClassIn3h !== "precip-high") worstClassIn3h = "precip-mid";
-                                else if (interp.class === "precip-low" && worstClassIn3h === "precip-none") worstClassIn3h = "precip-low";
-                            }
-
-                            hHTML += '<div class="data-row">' +
-                                        '<div class="data-col">' + timeStr + '</div>' +
-                                        '<div class="data-col" style="color: #ffcc00; font-weight: bold;">' + tempHour + '&deg;C</div>' +
-                                        '<div class="data-col">' + interp.icon + '</div>' +
-                                        '<div class="data-col ' + interp.class + '">' + interp.text + '</div>' +
-                                      '</div>';
-                        }
-                        
-                        // AKURATNE I LEKKIE STRUMIENIOWANIE BARW NA MAPĘ STREFOWĄ
-                        function getZoneColor(zoneArray) {
-                            var worst = "#2ecc71"; // Domyślnie zielony (sucho)
-                            for(var m=0; m<zoneArray.length; m++) {
-                                if(zoneArray[m].class === "precip-storm") return "#9b59b6";
-                                if(zoneArray[m].class === "precip-high") worst = "#e74c3c";
-                                if(zoneArray[m].class === "precip-mid" && worst !== "#e74c3c") worst = "#e67e22";
-                                if(zoneArray[m].class === "precip-low" && worst !== "#e74c3c" && worst !== "#e67e22") worst = "#f1c40f";
-                            }
-                            return worst;
-                        }
-
-                        document.getElementById('zf1-' + loc.id).style.backgroundColor = getZoneColor(zone1Items);
-                        document.getElementById('zf2-' + loc.id).style.backgroundColor = getZoneColor(zone2Items);
-                        document.getElementById('zf3-' + loc.id).style.backgroundColor = getZoneColor(zone3Items);
-                        
-                        document.getElementById('hourly-' + loc.id).innerHTML = hHTML;
-
-                        // Wdrażanie inteligentnego werdyktu drogowego
-                        var adviceResult = getRoadAdvice(t, w, worstClassIn3h, currentCode);
-                        var advDiv = document.getElementById('advice-' + loc.id);
-                        advDiv.innerHTML = adviceResult.text;
-                        advDiv.style.borderLeftColor = adviceResult.color;
-                        advDiv.style.backgroundColor = adviceResult.bg;
-
-                        var dHTML = "";
-                        for (var m = 1; m <= 5; m++) {
-                            if (m >= data.daily.time.length) break;
-                            var dDate = new Date(data.daily.time[m] * 1000); 
-                            var daysPl = ["Niedz", "Pon", "Wt", "Śr", "Czw", "Pt", "Sob"];
-                            var dName = daysPl[dDate.getDay()];
-                            var minTemp = Math.round(data.daily.temperature_2m_min[m]);
-                            var maxTemp = Math.round(data.daily.temperature_2m_max[m]);
-                            var desc = getDesc(data.daily.weather_code[m]);
-                            dHTML += '<div class="data-row"><span>' + dName + ' (' + desc + ')</span><span style="font-weight:bold;">' + minTemp + '&deg;C / ' + maxTemp + '&deg;C</span></div>';
-                        }
-                        document.getElementById('daily-' + loc.id).innerHTML = dHTML;
-                    }
-                };
-                xhr.send();
-            })(locations[i]);
-        }
-    }
+                        //
