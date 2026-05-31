@@ -1,0 +1,455 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Widget Pogodowy - Asfalt Radar Strefowy</title>
+    
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #1e1e1e;
+            color: #ffffff;
+            margin: 0;
+            padding: 15px;
+        }
+        .container {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 20px;
+            max-width: 1500px;
+            margin: 0 auto;
+        }
+        @media (max-width: 1150px) {
+            .container { grid-template-columns: repeat(2, 1fr); }
+        }
+        @media (max-width: 750px) {
+            .container { grid-template-columns: 1fr; }
+        }
+        
+        .card {
+            background-color: #2d2d2d;
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 6px 12px rgba(0,0,0,0.6);
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .current {
+            background-color: #222;
+            padding: 15px;
+            border-radius: 10px;
+            text-align: center;
+            margin-bottom: 15px;
+        }
+        .temp { font-size: 2.8em; font-weight: bold; color: #ffcc00; margin: 5px 0; }
+        .wind { color: #aaa; font-size: 0.95em; margin-bottom: 4px; }
+        .current-precip { font-size: 1.05em; font-weight: bold; margin-top: 5px; }
+        
+        .advice {
+            padding: 15px;
+            margin-bottom: 20px;
+            font-size: 1em;
+            border-radius: 6px;
+            min-height: 40px;
+            line-height: 1.4;
+            border-left: 6px solid;
+        }
+        
+        .section-title { 
+            color: #4da6ff; font-size: 1.2em; border-bottom: 2px solid #444; 
+            padding-bottom: 6px; margin-top: 15px; margin-bottom: 15px; 
+            font-weight: 600;
+        }
+        
+        /* NOWA SEKCJA MAPY STREFOWEJ */
+        .map-area {
+            height: 320px; 
+            background-color: #151d26;
+            border-radius: 10px;
+            position: relative;
+            border: 1px solid #444;
+            margin-bottom: 15px;
+        }
+        
+        /* Centryczne pierścienie czasu/odległości radaru */
+        .radar-ring {
+            position: absolute;
+            top: 50%; left: 50%;
+            transform: translate(-50%, -50%);
+            border-radius: 50%;
+            border: 1px dashed rgba(255,255,255,0.06);
+            pointer-events: none;
+            box-sizing: border-box;
+        }
+        .ring-1 { width: 100px; height: 100px; z-index: 2; } /* Strefa: Teraz / +1h */
+        .ring-2 { width: 210px; height: 210px; z-index: 2; } /* Strefa: +2h / +3h */
+        .ring-3 { width: 320px; height: 320px; z-index: 2; } /* Strefa: +4h / +6h */
+        
+        /* Kolorowe podkłady strefowe opadów */
+        .zone-fill {
+            position: absolute;
+            top: 50%; left: 50%;
+            transform: translate(-50%, -50%);
+            border-radius: 50%;
+            opacity: 0.25;
+            transition: background-color 0.5s;
+        }
+        .zf-1 { width: 100px; height: 100px; z-index: 1; }
+        .zf-2 { width: 210px; height: 210px; z-index: 1; }
+        .zf-3 { width: 320px; height: 320px; z-index: 1; }
+
+        .map-labels {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            pointer-events: none;
+            z-index: 4;
+        }
+        .map-label { font-size: 0.75em; color: rgba(255,255,255,0.4); position: absolute; transform: translate(-50%, -50%); }
+        .label-center { font-weight: bold; color: rgba(255,255,255,0.95); font-size: 0.9em; top: 50%; left: 50%; text-shadow: 0 0 5px #000; }
+        
+        /* ZMINIMALIZOWANA LEGENDA */
+        .map-legend {
+            position: absolute; top: 10px; right: 12px;
+            font-size: 0.65em; text-align: right;
+            z-index: 5;
+            color: rgba(255,255,255,0.4);
+            line-height: 1.4;
+        }
+        
+        /* TABELA DANYCH POD MAPĄ */
+        .infographic-data {
+            background-color: #1e2936;
+            border-radius: 8px;
+            padding: 12px;
+            font-size: 0.82em;
+            border: 1px solid #324354;
+        }
+        .data-header { color: #8cb4e6; margin-bottom: 10px; font-weight: 600; font-size: 0.85em; }
+        .data-grid { display: flex; flex-direction: column; gap: 8px; }
+        .data-row { display: flex; justify-content: space-between; border-bottom: 1px solid rgba(255,255,255,0.06); padding-bottom: 6px; }
+        .data-row:last-child { border-bottom: none; padding-bottom: 0; }
+        .data-col { flex: 1; text-align: center; }
+        .data-col:first-child { text-align: left; font-weight: 500; color: #888; }
+        .data-col:last-child { text-align: right; font-weight: bold; }
+        
+        .precip-none { color: #2ecc71; }   
+        .precip-low { color: #f1c40f; }    
+        .precip-mid { color: #e67e22; }    
+        .precip-high { color: #e74c3c; }   
+        .precip-storm { color: #9b59b6; }  
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div class="card" id="loc1">
+        <div class="section-title" style="margin-top: 0; color: #ffcc00;">Sufczyn (32-852)</div>
+        <div class="current">
+            <div class="temp">...</div>
+            <div class="wind">Pobieranie...</div>
+            <div class="current-precip" id="current-precip-loc1">Stan: ...</div>
+        </div>
+        <div class="advice" id="advice-loc1">Trwa analiza nawierzchni...</div>
+        
+        <div class="section-title">Strefowy Radar Opadów</div>
+        <div class="map-area">
+            <div class="radar-ring ring-1"></div>
+            <div class="radar-ring ring-2"></div>
+            <div class="radar-ring ring-3"></div>
+            
+            <div class="zone-fill zf-3" id="zf3-loc1"></div>
+            <div class="zone-fill zf-2" id="zf2-loc1"></div>
+            <div class="zone-fill zf-1" id="zf1-loc1"></div>
+            
+            <div class="map-labels">
+                <div class="map-label label-center">SUFCZYN</div>
+                <div class="map-label" style="top: 50%; left: 22%;">+2h</div>
+                <div class="map-label" style="top: 50%; left: 5%;">+5h</div>
+            </div>
+            
+            <div class="map-legend">
+                Fronty opadowe:<br>
+                <span style="color:#2ecc71;">■</span> Droga sucha<br>
+                <span style="color:#f1c40f;">■</span> Mżawka (Wilgotno)<br>
+                <span style="color:#e67e22;">■</span> Deszcz (Mokro)<br>
+                <span style="color:#e74c3c;">■</span> Ulewa (Kałuże)<br>
+                <span style="color:#9b59b6;">■</span> Burza (Zagrożenie)
+            </div>
+        </div>
+
+        <div class="infographic-data">
+            <div class="data-header">PROGNOZA CZASOWA (Zbieżna z Google):</div>
+            <div class="data-grid" id="hourly-loc1">Ładowanie...</div>
+        </div>
+        <div class="section-title">Najbliższe dni</div>
+        <div class="data-list daily" id="daily-loc1" style="background: #222; padding: 12px; border-radius: 8px;">Ładowanie...</div>
+    </div>
+
+    <div class="card" id="loc2">
+        <div class="section-title" style="margin-top: 0; color: #ffcc00;">Kraków (30-547)</div>
+        <div class="current">
+            <div class="temp">...</div>
+            <div class="wind">Pobieranie...</div>
+            <div class="current-precip" id="current-precip-loc2">Stan: ...</div>
+        </div>
+        <div class="advice" id="advice-loc2">Trwa analiza nawierzchni...</div>
+        
+        <div class="section-title">Strefowy Radar Opadów</div>
+        <div class="map-area">
+            <div class="radar-ring ring-1"></div>
+            <div class="radar-ring ring-2"></div>
+            <div class="radar-ring ring-3"></div>
+            
+            <div class="zone-fill zf-3" id="zf3-loc2"></div>
+            <div class="zone-fill zf-2" id="zf2-loc2"></div>
+            <div class="zone-fill zf-1" id="zf1-loc2"></div>
+            
+            <div class="map-labels">
+                <div class="map-label label-center">KRAKÓW</div>
+                <div class="map-label" style="top: 50%; left: 22%;">+2h</div>
+                <div class="map-label" style="top: 50%; left: 5%;">+5h</div>
+            </div>
+            
+            <div class="map-legend">
+                Fronty opadowe:<br>
+                <span style="color:#2ecc71;">■</span> Droga sucha<br>
+                <span style="color:#f1c40f;">■</span> Mżawka (Wilgotno)<br>
+                <span style="color:#e67e22;">■</span> Deszcz (Mokro)<br>
+                <span style="color:#e74c3c;">■</span> Ulewa (Kałuże)<br>
+                <span style="color:#9b59b6;">■</span> Burza (Zagrożenie)
+            </div>
+        </div>
+
+        <div class="infographic-data">
+            <div class="data-header">PROGNOZA CZASOWA (Zbieżna z Google):</div>
+            <div class="data-grid" id="hourly-loc2">Ładowanie...</div>
+        </div>
+        <div class="section-title">Najbliższe dni</div>
+        <div class="data-list daily" id="daily-loc2" style="background: #222; padding: 12px; border-radius: 8px;">Ładowanie...</div>
+    </div>
+
+    <div class="card" id="loc3">
+        <div class="section-title" style="margin-top: 0; color: #ffcc00;">Sępopol (11-210)</div>
+        <div class="current">
+            <div class="temp">...</div>
+            <div class="wind">Pobieranie...</div>
+            <div class="current-precip" id="current-precip-loc3">Stan: ...</div>
+        </div>
+        <div class="advice" id="advice-loc3">Trwa analiza nawierzchni...</div>
+        
+        <div class="section-title">Strefowy Radar Opadów</div>
+        <div class="map-area">
+            <div class="radar-ring ring-1"></div>
+            <div class="radar-ring ring-2"></div>
+            <div class="radar-ring ring-3"></div>
+            
+            <div class="zone-fill zf-3" id="zf3-loc3"></div>
+            <div class="zone-fill zf-2" id="zf2-loc3"></div>
+            <div class="zone-fill zf-1" id="zf1-loc3"></div>
+            
+            <div class="map-labels">
+                <div class="map-label label-center">SĘPOPOL</div>
+                <div class="map-label" style="top: 50%; left: 22%;">+2h</div>
+                <div class="map-label" style="top: 50%; left: 5%;">+5h</div>
+            </div>
+            
+            <div class="map-legend">
+                Fronty opadowe:<br>
+                <span style="color:#2ecc71;">■</span> Droga sucha<br>
+                <span style="color:#f1c40f;">■</span> Mżawka (Wilgotno)<br>
+                <span style="color:#e67e22;">■</span> Deszcz (Mokro)<br>
+                <span style="color:#e74c3c;">■</span> Ulewa (Kałuże)<br>
+                <span style="color:#9b59b6;">■</span> Burza (Zagrożenie)
+            </div>
+        </div>
+
+        <div class="infographic-data">
+            <div class="data-header">PROGNOZA GODZINOWA (Zbieżna z Google):</div>
+            <div class="data-grid" id="hourly-loc3">Ładowanie...</div>
+        </div>
+        <div class="section-title">Najbliższe dni</div>
+        <div class="data-list daily" id="daily-loc3" style="background: #222; padding: 12px; border-radius: 8px;">Ładowanie...</div>
+    </div>
+</div>
+
+<script>
+    var locations = [
+        { id: 'loc1', lat: 49.9625, lon: 20.7497 }, 
+        { id: 'loc2', lat: 50.0468, lon: 19.9544 }, 
+        { id: 'loc3', lat: 54.2710, lon: 21.0110 }  
+    ];
+
+    function getDesc(code) {
+        if (code === 0) return "Pogodnie";
+        if (code >= 1 && code <= 3) return "Lekkie zachmurzenie";
+        if (code >= 45 && code <= 48) return "Mgła";
+        if (code >= 51 && code <= 67) return "Deszcz";
+        if (code >= 71 && code <= 77) return "Śnieg";
+        if (code >= 80 && code <= 82) return "Ulewa";
+        if (code >= 95 && code <= 99) return "Burza";
+        return "Pochmurno";
+    }
+
+    // SYSTEM INTERPRETACJI DANYCH DLA LAIKA
+    function interpretWeather(precip, rawProb, wCode) {
+        var res = { class: "precip-none", text: "Sucho (0%)", icon: "✅", hexColor: "#2ecc71" };
+        
+        // Filtr wygładzający Google dla małych mżawek
+        var googleProb = rawProb;
+        if (precip > 0 && precip <= 0.25 && rawProb > 50) {
+            googleProb = Math.round(rawProb * 0.3); 
+        }
+
+        if (wCode >= 95 || precip > 6.0) {
+            res.class = "precip-storm"; res.text = "Burza (" + googleProb + "%)"; res.icon = "⛈️"; res.hexColor = "#9b59b6";
+        } else if (precip > 2.5) {
+            res.class = "precip-high"; res.text = "Ulewa (" + googleProb + "%)"; res.icon = "❌"; res.hexColor = "#e74c3c";
+        } else if (precip > 0.8) {
+            res.class = "precip-mid"; res.text = "Mokro (" + googleProb + "%)"; res.icon = "❌"; res.hexColor = "#e67e22";
+        } else if (precip > 0.0 || googleProb > 15) {
+            res.class = "precip-low"; res.text = "Mżawka (" + googleProb + "%)"; res.icon = "⚠️"; res.hexColor = "#f1c40f";
+        } else {
+            res.text = "Sucho (" + googleProb + "%)";
+        }
+        return res;
+    }
+
+    function getRoadAdvice(temp, wind, worstClass, currentWCode) {
+        var text = "";
+        if (currentWCode >= 95 || worstClass === "precip-storm") return { text: "⛈️ <b>ALARM BURZOWY!</b> Bezwzględny zakaz jazdy, pioruny.", color: "#9b59b6", bg: "#25162b" };
+        if (worstClass === "precip-high") return { text: "🌧️ <b>Potoki na drogach:</b> Bardzo silna ulewa. Odpuść trasę.", color: "#e74c3c", bg: "#331c1a" };
+        if (worstClass === "precip-mid") return { text: "☔ <b>Asfalt całkowicie mokry:</b> Droga jest śliska, uważaj na zakrętach.", color: "#e67e22", bg: "#33221a" };
+        if (worstClass === "precip-low") return { text: "⚠️ <b>Droga wilgotna/ciemna:</b> Pada lekka mżawka. Opony pryskają.", color: "#f1c40f", bg: "#332c1a" };
+        
+        if (wind > 30) { text += "💨 Silny wiatr boczny! <br>"; }
+        if (temp < 10) { text += "🧤 Niska temperatura, ubierz się cieplej. <br>"; }
+        
+        return { text: text || "🚲 <b>Asfalt całkowicie suchy!</b> Idealne warunki na szosę.", color: "#2ecc71", bg: "#1a3320" };
+    }
+
+    function fetchWeatherData() {
+        for (var i = 0; i < locations.length; i++) {
+            (function(loc) {
+                var card = document.getElementById(loc.id);
+                if (!card) return;
+
+                var uniqueStamp = Math.floor(Date.now() / 1000);
+                var url = "https://api.open-meteo.com/v1/forecast?latitude=" + loc.lat + "&longitude=" + loc.lon + "&current=temperature_2m,wind_speed_10m,weather_code,precipitation,precipitation_probability&hourly=precipitation,precipitation_probability,temperature_2m,weather_code&daily=weather_code,temperature_2m_max,temperature_2m_min&timezone=Europe%2FWarsaw&timeformat=unixtime&_=" + uniqueStamp;
+                
+                var xhr = new XMLHttpRequest();
+                xhr.open("GET", url, true);
+                
+                xhr.onload = function() {
+                    if (xhr.status >= 200 && xhr.status < 300) {
+                        var data = JSON.parse(xhr.responseText);
+                        
+                        var t = Math.round(data.current.temperature_2m);
+                        var w = Math.round(data.current.wind_speed_10m);
+                        var currentCode = data.current.weather_code;
+                        
+                        // Nagłówek "Teraz" dla laika
+                        var curInterp = interpretWeather(data.current.precipitation || 0, data.current.precipitation_probability || 0, currentCode);
+                        var textNow = curInterp.class === "precip-none" ? "Sucho" : (curInterp.class === "precip-low" ? "Mżawka" : "Deszcz");
+                        document.getElementById('current-precip-' + loc.id).innerHTML = 'Teraz: <span class="' + curInterp.class + '">' + textNow + ' (' + curInterp.text.match(/\d+%/)[0] + ')</span>';
+
+                        card.querySelector('.temp').innerHTML = t + " &deg;C";
+                        card.querySelector('.wind').innerHTML = "Wiatr: " + w + " km/h";
+
+                        var nowSec = Math.floor(Date.now() / 1000);
+                        var hIndex = 0;
+                        for (var j = 0; j < data.hourly.time.length; j++) {
+                            if (data.hourly.time[j] >= nowSec - 3600) {
+                                hIndex = j;
+                                break;
+                            }
+                        }
+
+                        var hHTML = "";
+                        var worstClassIn3h = "precip-none";
+                        
+                        // Tablice stref pogodowych dla mapy
+                        var zone1Items = []; // Najbliższe godziny (0h, 1h)
+                        var zone2Items = []; // Środek trasy (2h, 3h)
+                        var zone3Items = []; // Daleka prognoza (4h, 5h)
+
+                        for (var k = 0; k < 6; k++) { 
+                            var idx = hIndex + k;
+                            if (idx >= data.hourly.time.length) break;
+                            
+                            var dateObj = new Date(data.hourly.time[idx] * 1000);
+                            var hours = dateObj.getHours();
+                            if (hours < 10) hours = "0" + hours;
+                            var timeStr = hours + ":00";
+                            
+                            var p = data.hourly.precipitation[idx] || 0; 
+                            var prob = data.hourly.precipitation_probability[idx] || 0; 
+                            var tempHour = Math.round(data.hourly.temperature_2m[idx]);
+                            var wCode = data.hourly.weather_code[idx];
+                            
+                            var interp = interpretWeather(p, prob, wCode);
+                            
+                            // Segregacja godzin do odpowiednich stref na mapie radaru
+                            if (k < 2) zone1Items.push(interp);
+                            else if (k < 4) zone2Items.push(interp);
+                            else zone3Items.push(interp);
+
+                            // Śledzenie najgorszych warunków dla 3h porady
+                            if (k < 3) {
+                                if (interp.class === "precip-storm") worstClassIn3h = "precip-storm";
+                                else if (interp.class === "precip-high" && worstClassIn3h !== "precip-storm") worstClassIn3h = "precip-high";
+                                else if (interp.class === "precip-mid" && worstClassIn3h !== "precip-storm" && worstClassIn3h !== "precip-high") worstClassIn3h = "precip-mid";
+                                else if (interp.class === "precip-low" && worstClassIn3h === "precip-none") worstClassIn3h = "precip-low";
+                            }
+
+                            hHTML += '<div class="data-row">' +
+                                        '<div class="data-col">' + timeStr + '</div>' +
+                                        '<div class="data-col" style="color: #ffcc00; font-weight: bold;">' + tempHour + '&deg;C</div>' +
+                                        '<div class="data-col">' + interp.icon + '</div>' +
+                                        '<div class="data-col ' + interp.class + '">' + interp.text + '</div>' +
+                                      '</div>';
+                        }
+                        
+                        // AKURATNE I LEKKIE STRUMIENIOWANIE BARW NA MAPĘ STREFOWĄ
+                        function getZoneColor(zoneArray) {
+                            var worst = "#2ecc71"; // Domyślnie zielony (sucho)
+                            for(var m=0; m<zoneArray.length; m++) {
+                                if(zoneArray[m].class === "precip-storm") return "#9b59b6";
+                                if(zoneArray[m].class === "precip-high") worst = "#e74c3c";
+                                if(zoneArray[m].class === "precip-mid" && worst !== "#e74c3c") worst = "#e67e22";
+                                if(zoneArray[m].class === "precip-low" && worst !== "#e74c3c" && worst !== "#e67e22") worst = "#f1c40f";
+                            }
+                            return worst;
+                        }
+
+                        document.getElementById('zf1-' + loc.id).style.backgroundColor = getZoneColor(zone1Items);
+                        document.getElementById('zf2-' + loc.id).style.backgroundColor = getZoneColor(zone2Items);
+                        document.getElementById('zf3-' + loc.id).style.backgroundColor = getZoneColor(zone3Items);
+                        
+                        document.getElementById('hourly-' + loc.id).innerHTML = hHTML;
+
+                        // Wdrażanie inteligentnego werdyktu drogowego
+                        var adviceResult = getRoadAdvice(t, w, worstClassIn3h, currentCode);
+                        var advDiv = document.getElementById('advice-' + loc.id);
+                        advDiv.innerHTML = adviceResult.text;
+                        advDiv.style.borderLeftColor = adviceResult.color;
+                        advDiv.style.backgroundColor = adviceResult.bg;
+
+                        var dHTML = "";
+                        for (var m = 1; m <= 5; m++) {
+                            if (m >= data.daily.time.length) break;
+                            var dDate = new Date(data.daily.time[m] * 1000); 
+                            var daysPl = ["Niedz", "Pon", "Wt", "Śr", "Czw", "Pt", "Sob"];
+                            var dName = daysPl[dDate.getDay()];
+                            var minTemp = Math.round(data.daily.temperature_2m_min[m]);
+                            var maxTemp = Math.round(data.daily.temperature_2m_max[m]);
+                            var desc = getDesc(data.daily.weather_code[m]);
+                            dHTML += '<div class="data-row"><span>' + dName + ' (' + desc + ')</span><span style="font-weight:bold;">' + minTemp + '&deg;C / ' + maxTemp + '&deg;C</span></div>';
+                        }
+                        document.getElementById('daily-' + loc.id).innerHTML = dHTML;
+                    }
+                };
+                xhr.send();
+            })(locations[i]);
+        }
+    }
