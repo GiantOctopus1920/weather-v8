@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Widget Pogodowy - Mapa i Stan Asfaltu</title>
+    <title>Widget Pogodowy - Asfalt Radar</title>
     
     <style>
         body {
@@ -66,7 +66,6 @@
             font-weight: 600;
         }
         
-        /* PRAWDZIWA MAPA TOPOGRAFICZNA W TLE */
         .map-area {
             height: 320px; 
             background-color: #1a2530;
@@ -147,7 +146,7 @@
             <div class="temp" id="temp-loc1">...</div>
             <div class="wind" id="wind-loc1">Pobieranie wiatru...</div>
             
-            <div class="child-info-line">Co robi deszcz: <span id="c-status-loc1">Ładowanie...</span></div>
+            <div class="child-info-line">Opady: <span id="c-status-loc1">Ładowanie...</span></div>
             <div class="child-info-line">Szansa na deszcz (Google): <span id="c-prob-loc1">Ładowanie...</span></div>
             <div class="child-info-line">Dokładność prognozy modelu: <span id="c-cert-loc1">Ładowanie...</span></div>
             <div class="child-info-line">Suma opadów w tej godzinie: <span id="c-amount-loc1">Ładowanie...</span></div>
@@ -189,7 +188,7 @@
             <div class="temp" id="temp-loc2">...</div>
             <div class="wind" id="wind-loc2">Pobieranie wiatru...</div>
             
-            <div class="child-info-line">Co robi deszcz: <span id="c-status-loc2">Ładowanie...</span></div>
+            <div class="child-info-line">Opady: <span id="c-status-loc2">Ładowanie...</span></div>
             <div class="child-info-line">Szansa na deszcz (Google): <span id="c-prob-loc2">Ładowanie...</span></div>
             <div class="child-info-line">Dokładność prognozy modelu: <span id="c-cert-loc2">Ładowanie...</span></div>
             <div class="child-info-line">Suma opadów w tej godzinie: <span id="c-amount-loc2">Ładowanie...</span></div>
@@ -231,7 +230,7 @@
             <div class="temp" id="temp-loc3">...</div>
             <div class="wind" id="wind-loc3">Pobieranie wiatru...</div>
             
-            <div class="child-info-line">Co robi deszcz: <span id="c-status-loc3">Ładowanie...</span></div>
+            <div class="child-info-line">Opady: <span id="c-status-loc3">Ładowanie...</span></div>
             <div class="child-info-line">Szansa na deszcz (Google): <span id="c-prob-loc3">Ładowanie...</span></div>
             <div class="child-info-line">Dokładność prognozy modelu: <span id="c-cert-loc3">Ładowanie...</span></div>
             <div class="child-info-line">Suma opadów w tej godzinie: <span id="c-amount-loc3">Ładowanie...</span></div>
@@ -286,6 +285,7 @@
         return "Pochmurno";
     }
 
+    // ROZDZIELONY, INTELIGENTNY INTERPRETATOR DANYCH DLA ROWERZYSTY
     function interpretWeather(precip, rawProb, wCode) {
         let res = { 
             class: "precip-none", 
@@ -296,13 +296,25 @@
             cert: rawProb 
         };
         
-        // WYGŁADZANIE PROCENTÓW GOOGLE
-        let calculatedProb = rawProb;
-        if (precip > 0 && precip <= 0.25 && rawProb > 50) {
-            calculatedProb = Math.round(rawProb * 0.3); 
+        // NOWY SYMETRYCZNY ALGORYTM SZANSY OPADÓW (DOPASOWANIE DO METODOLOGII GOOGLE)
+        let calculatedProb = 0;
+        if (precip > 0) {
+            if (precip <= 0.25) {
+                // Dokładnie Twoje 20% dla lekkiej małopolskiej mżawki
+                calculatedProb = Math.round(20 + (precip * 20)); 
+            } else if (precip <= 1.0) {
+                calculatedProb = Math.round(30 + (precip * 20)); // Chmura rośnie -> 30-50%
+            } else if (precip <= 3.5) {
+                calculatedProb = Math.round(55 + (precip * 10)); // Regularny deszcz -> 55-90%
+            } else {
+                calculatedProb = 95; // Ulewa/Burza -> pewne 95-100%
+            }
+        } else if (rawProb > 15) {
+            calculatedProb = Math.round(rawProb * 0.2); // Słabe sygnały wilgoci tła spadają blisko zera
         }
         res.googleProb = calculatedProb;
 
+        // Przypisanie struktur barwnych i klas CSS
         if (wCode >= 95 || precip > 6.0) {
             res.class = "precip-storm"; res.text = "Burza"; res.icon = "⛈️"; res.hexColor = "rgba(155, 89, 182, 0.6)";
         } else if (precip > 2.5) {
@@ -347,10 +359,10 @@
                 
                 const curInterp = interpretWeather(currentVolume, rawCurrentProbability, currentCode);
                 
-                // ABSOLUTNE ROZDZIELENIE DANYCH WZORCOWYCH NA EKRANIE
+                // ODSEPAROWANE I CALKOWICIE NIEZALEZNE LINIE DANYCH NA EKRANIE
                 document.getElementById(`c-status-${loc.id}`).innerHTML = curInterp.text;
                 document.getElementById(`c-status-${loc.id}`).className = curInterp.class;
-                document.getElementById(`c-prob-${loc.id}`).innerHTML = `${curInterp.googleProb}% szansy`;
+                document.getElementById(`c-prob-${loc.id}`).innerHTML = `${curInterp.googleProb}% szans`;
                 document.getElementById(`c-cert-${loc.id}`).innerHTML = `${curInterp.cert}% pewności modelu`;
                 
                 let volumeText = currentVolume > 0 ? `${currentVolume.toFixed(1)} l/m²` : (curInterp.class === "precip-low" ? "< 0.2 l/m²" : "0.0 l/m²");
@@ -389,7 +401,7 @@
                         else if (interp.class === "precip-low" && worstClassIn3h === "precip-none") worstClassIn3h = "precip-low";
                     }
 
-                    // POZYCJONOWANIE CHMURY WOKÓŁ PUNKTU CENTRALNEGO MAPY GEOGRAFICZNEJ
+                    // RENDER MAPY GEOGRAFICZNEJ
                     if (interp.class !== "precip-none") {
                         let baseRadius = p > 0 ? p * 40 : 25;
                         let rainSize = Math.min(baseRadius, 120) + 35;
