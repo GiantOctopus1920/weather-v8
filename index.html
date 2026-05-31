@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Widget Pogodowy - Mapa i Stan Asfaltu</title>
+    <title>Widget Pogodowy - Asfalt Radar</title>
     
     <style>
         body {
@@ -46,8 +46,8 @@
         .temp { font-size: 2.8em; font-weight: bold; color: #ffcc00; text-align: center; margin: 5px 0; }
         .wind { color: #aaa; font-size: 0.95em; text-align: center; margin-bottom: 10px; border-bottom: 1px solid #333; padding-bottom: 8px; }
         
-        .child-info-line { font-size: 0.92em; margin: 6px 0; font-weight: 500; }
-        .child-info-line span { font-weight: bold; }
+        .child-info-line { font-size: 0.95em; margin: 8px 0; font-weight: 500; color: #eee; }
+        .child-info-line span { font-weight: bold; color: #fff; }
         
         .advice {
             padding: 15px;
@@ -66,7 +66,7 @@
             font-weight: 600;
         }
         
-        /* WARSTWA MAPY GEOGRAFICZNEJ */
+        /* POPRAWIONA STRUKTURA WARSTW MAPY */
         .map-area {
             height: 320px; 
             background-color: #1a2530;
@@ -87,9 +87,10 @@
         }
         
         .map-precipitation {
-            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            position: absolute; 
+            top: 0; left: 0; width: 100%; height: 100%;
             pointer-events: none;
-            z-index: 2;
+            z-index: 5; /* WYMUSZENIE WYŚWIETLANIA CHMURY NA SAMEJ GÓRZE */
         }
         .rain-zone { 
             position: absolute; 
@@ -102,7 +103,7 @@
         .map-labels {
             position: absolute; top: 0; left: 0; width: 100%; height: 100%;
             pointer-events: none;
-            z-index: 4;
+            z-index: 6;
         }
         .map-label { font-size: 0.78em; color: rgba(255,255,255,0.45); position: absolute; transform: translate(-50%, -50%); }
         .label-center { font-weight: bold; color: rgba(255,255,255,0.95); font-size: 0.95em; text-shadow: 0 0 4px #000; }
@@ -110,12 +111,11 @@
         .map-legend {
             position: absolute; top: 10px; right: 12px;
             font-size: 0.62em; text-align: right;
-            z-index: 5;
+            z-index: 7;
             color: rgba(255,255,255,0.4);
             line-height: 1.4;
         }
         
-        /* TABELA GODZINOWA */
         .infographic-data {
             background-color: #1e2936;
             border-radius: 8px;
@@ -145,13 +145,12 @@
         <div class="section-title" style="margin-top: 0; color: #ffcc00;">Sufczyn (32-852)</div>
         <div class="current">
             <div class="temp" id="temp-loc1">...</div>
-            <div class="wind" id="wind-loc1">Pobieranie...</div>
-            <div id="current-details-loc1">
-                <div class="child-info-line">Stan pogody: <span id="c-status-loc1">...</span></div>
-                <div class="child-info-line">Szansa na deszcz: <span id="c-prob-loc1">...</span></div>
-                <div class="child-info-line">Dokładność prognozy: <span id="c-cert-loc1">...</span></div>
-                <div class="child-info-line">Suma opadów: <span id="c-amount-loc1">...</span></div>
-            </div>
+            <div class="wind" id="wind-loc1">Pobieranie wiatru...</div>
+            
+            <div class="child-info-line">Co robi deszcz: <span id="c-status-loc1">Ładowanie...</span></div>
+            <div class="child-info-line">Szansa na deszcz (Google): <span id="c-prob-loc1">Ładowanie...</span></div>
+            <div class="child-info-line">Dokładność prognozy: <span id="c-cert-loc1">Ładowanie...</span></div>
+            <div class="child-info-line">Suma opadów w tej godzinie: <span id="c-amount-loc1">Ładowanie...</span></div>
         </div>
         <div class="advice" id="advice-loc1">Trwa analiza nawierzchni...</div>
         
@@ -188,13 +187,12 @@
         <div class="section-title" style="margin-top: 0; color: #ffcc00;">Kraków (30-547)</div>
         <div class="current">
             <div class="temp" id="temp-loc2">...</div>
-            <div class="wind" id="wind-loc2">Pobieranie...</div>
-            <div id="current-details-loc2">
-                <div class="child-info-line">Stan pogody: <span id="c-status-loc2">...</span></div>
-                <div class="child-info-line">Szansa na deszcz: <span id="c-prob-loc2">...</span></div>
-                <div class="child-info-line">Dokładność prognozy: <span id="c-cert-loc2">...</span></div>
-                <div class="child-info-line">Suma opadów: <span id="c-amount-loc2">...</span></div>
-            </div>
+            <div class="wind" id="wind-loc2">Pobieranie wiatru...</div>
+            
+            <div class="child-info-line">Co robi deszcz: <span id="c-status-loc2">Ładowanie...</span></div>
+            <div class="child-info-line">Szansa na deszcz (Google): <span id="c-prob-loc2">Ładowanie...</span></div>
+            <div class="child-info-line">Dokładność prognozy: <span id="c-cert-loc2">Ładowanie...</span></div>
+            <div class="child-info-line">Suma opadów w tej godzinie: <span id="c-amount-loc2">Ładowanie...</span></div>
         </div>
         <div class="advice" id="advice-loc2">Trwa analiza nawierzchni...</div>
         
@@ -231,13 +229,12 @@
         <div class="section-title" style="margin-top: 0; color: #ffcc00;">Sępopol (11-210)</div>
         <div class="current">
             <div class="temp" id="temp-loc3">...</div>
-            <div class="wind" id="wind-loc3">Pobieranie...</div>
-            <div id="current-details-loc3">
-                <div class="child-info-line">Stan pogody: <span id="c-status-loc3">...</span></div>
-                <div class="child-info-line">Szansa na deszcz: <span id="c-prob-loc3">...</span></div>
-                <div class="child-info-line">Dokładność prognozy: <span id="c-cert-loc3">...</span></div>
-                <div class="child-info-line">Suma opadów: <span id="c-amount-loc3">...</span></div>
-            </div>
+            <div class="wind" id="wind-loc3">Pobieranie wiatru...</div>
+            
+            <div class="child-info-line">Co robi deszcz: <span id="c-status-loc3">Ładowanie...</span></div>
+            <div class="child-info-line">Szansa na deszcz (Google): <span id="c-prob-loc3">Ładowanie...</span></div>
+            <div class="child-info-line">Dokładność prognozy: <span id="c-cert-loc3">Ładowanie...</span></div>
+            <div class="child-info-line">Suma opadów w tej godzinie: <span id="c-amount-loc3">Ładowanie...</span></div>
         </div>
         <div class="advice" id="advice-loc3">Trwa analiza nawierzchni...</div>
         
@@ -289,7 +286,6 @@
         return "Pochmurno";
     }
 
-    // NAPRAWIONY I CAŁKOWICIE ROZDZIELONY INTERPRETATOR POGODY
     function interpretWeather(precip, rawProb, wCode) {
         let res = { 
             class: "precip-none", 
@@ -300,22 +296,21 @@
             cert: rawProb 
         };
         
-        // Wyliczanie zsynchronizowanego Prawdopodobieństwa w % (Metodologia Google)
+        // Obliczanie zbieżnego z Google procentu szansy
         let calculatedProb = rawProb;
         if (precip > 0 && precip <= 0.25 && rawProb > 50) {
-            calculatedProb = Math.round(rawProb * 0.3); // Wygładzamy błąd darmowego modelu dla mżawki
+            calculatedProb = Math.round(rawProb * 0.3); 
         }
         res.googleProb = calculatedProb;
 
-        // Dobieranie statusu i barwy chmury na podstawie parametrów deszczu
         if (wCode >= 95 || precip > 6.0) {
             res.class = "precip-storm"; res.text = "Burza"; res.icon = "⛈️"; res.hexColor = "rgba(155, 89, 182, 0.6)";
         } else if (precip > 2.5) {
-            res.class = "precip-high"; res.text = "Ulewa"; res.icon = "❌"; res.hexColor = "rgba(231, 76, 60, 0.55)";
+            res.class = "precip-high"; res.text = "Ulewa"; res.icon = "❌"; res.hexColor = "rgba(231, 76, 60, 0.6)";
         } else if (precip > 0.8) {
-            res.class = "precip-mid"; res.text = "Deszcz"; res.icon = "❌"; res.hexColor = "rgba(230, 126, 34, 0.5)";
+            res.class = "precip-mid"; res.text = "Deszcz"; res.icon = "❌"; res.hexColor = "rgba(230, 126, 34, 0.55)";
         } else if (precip > 0.0 || calculatedProb > 15) {
-            res.class = "precip-low"; res.text = "Mżawka"; res.icon = "⚠️"; res.hexColor = "rgba(241, 196, 15, 0.5)";
+            res.class = "precip-low"; res.text = "Mżawka"; res.icon = "⚠️"; res.hexColor = "rgba(241, 196, 15, 0.55)";
         }
         return res;
     }
@@ -347,16 +342,16 @@
                 const w = Math.round(data.current.wind_speed_10m);
                 const currentCode = data.current.weather_code;
                 
-                // 1. AKTUALIZACJA SEKCJI GÓRNEJ ("TERAZ") - PRECYZYJNE ROZDZIELENIE DANYCH DLA DZIECKA
                 let currentVolume = data.current.precipitation || 0;
                 let rawCurrentProbability = data.current.precipitation_probability || 0;
                 
                 const curInterp = interpretWeather(currentVolume, rawCurrentProbability, currentCode);
                 
+                // TU WSTRZYKUJEMY DANE BEZPOŚREDNIO DO ZNACZNIKÓW ID
                 document.getElementById(`c-status-${loc.id}`).innerHTML = curInterp.text;
                 document.getElementById(`c-status-${loc.id}`).className = curInterp.class;
                 document.getElementById(`c-prob-${loc.id}`).innerHTML = `${curInterp.googleProb}% szans`;
-                document.getElementById(`c-cert-${loc.id}`).innerHTML = `${curInterp.cert}% (Pewność komputera)`;
+                document.getElementById(`c-cert-${loc.id}`).innerHTML = `${curInterp.cert}% pewności`;
                 
                 let volumeText = currentVolume > 0 ? `${currentVolume.toFixed(1)} l/m²` : (curInterp.class === "precip-low" ? "< 0.2 l/m²" : "0.0 l/m²");
                 document.getElementById(`c-amount-${loc.id}`).innerHTML = volumeText;
@@ -372,7 +367,6 @@
                 let rainHTMLData = "";
                 let worstClassIn3h = "precip-none";
 
-                // 2. AKTUALIZACJA TABELI GODZINOWEJ ORAZ RENDERA CHMUR NA MAPIE
                 for (let k = 0; k < 6; k++) { 
                     let idx = hIndex + k;
                     if (idx >= data.hourly.time.length) break;
@@ -392,15 +386,13 @@
                         if (interp.class === "precip-storm") worstClassIn3h = "precip-storm";
                         else if (interp.class === "precip-high" && worstClassIn3h !== "precip-storm") worstClassIn3h = "precip-high";
                         else if (interp.class === "precip-mid" && worstClassIn3h !== "precip-storm" && worstClassIn3h !== "precip-high") worstClassIn3h = "precip-mid";
-                        else if (interp.class === "precip-low" && worstClassIn3h === "precip-none") worstClassIn3h = "precip-low";
+                        else if (interp.class === "precip-low" && worstClassIn3h === "none") worstClassIn3h = "precip-low";
                     }
 
-                    // NAPRAWIONY RENDER MAPY: Chmury pozycjonują się prawidłowo na mkiecie geograficznej
+                    // RENDEROWANIE PLAM CHMUR
                     if (interp.class !== "precip-none") {
                         let baseRadius = p > 0 ? p * 40 : 25;
                         let rainSize = Math.min(baseRadius, 120) + 35;
-                        
-                        // Generowanie współrzędnych chmury wokół punktu centralnego mapy
                         let xPos = 50 + (k * 7) - 12; 
                         let yPos = 50 - (k * 3) + 2;  
                         rainHTMLData += `<div class="rain-zone" style="top:${yPos}%; left:${xPos}%; width:${rainSize}px; height:${rainSize}px; background-color:${interp.hexColor}; opacity:1;"></div>`;
@@ -423,14 +415,12 @@
                 document.getElementById(`rain-${loc.id}`).innerHTML = rainHTMLData;
                 document.getElementById(`hourly-${loc.id}`).innerHTML = hHTML;
 
-                // Werdykt drogowy
                 const adviceResult = getRoadAdvice(t, w, worstClassIn3h, currentCode);
                 const advDiv = document.getElementById(`advice-${loc.id}`);
                 advDiv.innerHTML = adviceResult.text;
                 advDiv.style.borderLeftColor = adviceResult.color;
                 advDiv.style.backgroundColor = adviceResult.bg;
 
-                // Prognoza na 5 dni
                 let dHTML = "";
                 for (let m = 1; m <= 5; m++) {
                     if (m >= data.daily.time.length) break;
@@ -440,12 +430,12 @@
                     let minTemp = Math.round(data.daily.temperature_2m_min[m]);
                     let maxTemp = Math.round(data.daily.temperature_2m_max[m]);
                     let desc = getDesc(data.daily.weather_code[m]);
-                    dHTML += `<div class="data-row"><span>${dName} (${desc})</span><span style="font-weight:bold;">${minTemp}&copy; / ${maxTemp}&copy;</span></div>`;
+                    dHTML += `<div class="data-row"><span>${dName} (${desc})</span><span style="font-weight:bold;">${minTemp}&deg;C / ${maxTemp}&deg;C</span></div>`;
                 }
                 document.getElementById(`daily-${loc.id}`).innerHTML = dHTML;
 
             } catch (err) {
-                console.error("Błąd ładowania stacji:", err);
+                console.error("Błąd stacji:", err);
             }
         }
     }
